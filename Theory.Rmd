@@ -10,6 +10,7 @@ The aim of this document is to explain and demonstrate what different models imp
 
 * Laubach, Z.M., Murray, E.J., Hoke, K.L., Safran, R.J. and Perng, W., 2021. A biologist's guide to model selection and causal inference. Proceedings of the Royal Society B, 288(1943), p.20202815. https://doi.org/10.1098/rspb.2020.2815 
 * https://cran.r-project.org/web/packages/ggdag/vignettes/intro-to-dags.html 
+* Gelman and Hill 2007 Ch 23 http://www.stat.columbia.edu/~gelman/arm/chap23.pdf 
 
 # Theory
 
@@ -317,14 +318,6 @@ Correlated predictors tyically imply that there is an interaction between them (
 * Zuur, A. F., Ieno, E. N., & Elphick, C. S. (2010). A protocol for data exploration to avoid common statistical problems. Methods in ecology and evolution, 1(1), 3-14. https://doi.org/10.1111/j.2041-210X.2009.00001.x 
 
 
-
- 
-           
- 
-
-     
-
-
 ### A note on structural equation models, factor analysis, and path analysis
 These were additionally mysterious terms to me, but clarifying the causal interpretations of linear models make them easier to comprehend.
 
@@ -343,7 +336,9 @@ Factor analysis seeks to identfy latent variables that explain variation in a se
 Path analysis takes a DAG with a cause and outcome, and traces along all the possible paths between them (ie  paths through all connected nodes except colliders). The expected correlation due to each chain traced between two variables is the product of the _standardized_ path coefficients, and the total expected correlation between two variables is the sum of these contributing path-chains (i.e. the partial effects). 
       
 ## on missing data 
-In bayesian and regression literatures there is increasing emphasis on recognising that missing data is often non-random, and that simply removing these data points will introduce selection bias into the data structure.     
+In bayesian and regression literatures there is increasing emphasis on recognising that missing data is often non-random, and that simply removing these data points will introduce selection bias into the data structure.    
+
+http://jakewestfall.org/blog/index.php/2017/08/22/using-causal-graphs-to-understand-missingness-and-how-to-deal-with-it/
 
 # Simulations
 ```{r libraries}
