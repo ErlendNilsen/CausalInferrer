@@ -11,6 +11,7 @@ The aim of this document is to explain and demonstrate what different models imp
 * Laubach, Z.M., Murray, E.J., Hoke, K.L., Safran, R.J. and Perng, W., 2021. A biologist's guide to model selection and causal inference. Proceedings of the Royal Society B, 288(1943), p.20202815. https://doi.org/10.1098/rspb.2020.2815 
 * https://cran.r-project.org/web/packages/ggdag/vignettes/intro-to-dags.html 
 * Gelman and Hill 2007 Ch 23 http://www.stat.columbia.edu/~gelman/arm/chap23.pdf 
+* others as mentioned below - I'll try and collate these here later.
 
 # Theory
 
