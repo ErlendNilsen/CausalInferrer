@@ -1,0 +1,357 @@
+---
+title: "Why causal inference matters"
+  subtitle: "DAGs and contrasts of regression, matching, and bayesian network analyses in a synthetic system"
+output: html_notebook
+---
+
+The aim of this document is to explain and demonstrate what different models imply causally, why different types of models give different results, and what this means for causal inference. We will first outline the theory, and then demonstrate using simulated data.
+
+### Some useful references, many of which we will refer to below.
+
+* Laubach, Z.M., Murray, E.J., Hoke, K.L., Safran, R.J. and Perng, W., 2021. A biologist's guide to model selection and causal inference. Proceedings of the Royal Society B, 288(1943), p.20202815. https://doi.org/10.1098/rspb.2020.2815 
+* https://cran.r-project.org/web/packages/ggdag/vignettes/intro-to-dags.html 
+
+# Theory
+
+## Graphical causal models 
+
+These are illustrations of the causal assumptions of a system. Nodes (variables) are connected by arcs (dependencies). For a graph to be causal, these arcs need to be directed, and the graph must not contain loops, ie., graphical causal models are expressed by directed, acyclic graph (DAG). See https://cran.r-project.org/web/packages/ggdag/vignettes/intro-to-dags.html for more.
+
+The reason they need to be DAGs is so we can determine which variables are relevant and how, when determining causal impacts.
+
+Imagine we have three different variables, and we posit one is a 'cause' and another is an 'outcome'. How many different ways can the three variables be related in a DAG? 
+
+We can posit the third variable is:
+
+cause -> outcome  & independent     # not connected to the graph
+
+cause -> mechanism* -> outcome      # lying on the path from cause to outcome 
+instrument -> cause -> outcome      # preceeding the path 
+cause -> outcome -> furtheroutcome  # after the path
+
+cause -> mediator* -> outcome & cause -> outcome     # on the path & alternate path
+cause -> outcome & otherCause -> outcome             # an alternate cause
+cause <- confounder -> outcome & cause -> outcome    # the cause of both proposed cause and outcome (also known as a 'fork')
+cause -> collider <- outcome & cause -> outcome      # another outcome, caused by both cause and outcome 
+
+Defining the different types of variables tells us which variables are relevant to determining the impact of a cause on the outcome variable. Importantly, one of the key things to remember is that while the aim is to test the cause -> outcome relationship, a lot of the assumpations are not described in the causal graph, but rather implied by their absence. 
+
+### * A note on mechanisms, mediators, and moderators
+There are a number of terms for nodes that influcence a relationship between cause and outcome that are defined causally, though interpretation, rather than purely graphically. 
+
+* A mechanism always lies on the path from cause to outcome, and is an explanation for how something happens.
+* A mediator is a third variable that (also) links a cause and an outcome. A simple mediator is graphically == a mechanism, but interpretation is slightly different: whereas mechanism = how it happens, a mediator = indirect/intermediate outcome. A mediator, can be partial (as it is denoted above, influencing one of the two paths from cause to outcome). In this case, the total effect of cause on outcome, is via both direct and indirect paths.
+* A moderator is a third variable that controls the strength or direction of a causal outcome - i.e. an interaction outcome. Typically visualised as affecting the path, this could be captured as a latent variable:
+
+cause -> latent -> outcome & moderator -> latent
+
+or, it might be captured as graphically == otherCause but with an interaction between it and the cause.
+
+The differences can be explained though reference to physchological or medical literatures where they are more common. To start, they need an established cause and outcome. In the phychology literature, "theoretically and conceptually, a mediator should be a responsive variable that changes within a person"and occur after the cause, while a moderator might be the more stable traits or attributes of a person that occur before a cause (https://link.springer.com/article/10.1007/s11205-007-9143-1). In the medical literature, the difference between a mechanism, moderator, and mediator are relevant in how you treat these. A mechanism allows you to understand how something occurs. A moderator allows you to understand the risk factors of when/where/who is impacted. Mediators help to explain the intensity of the outcome (and can be manipulated). There are, of course, further complicated moderated-mediator or mediated-moderator models...  
+
+### Further resources on this:
+Wu, A.D., Zumbo, B.D. Understanding and Using Mediators and Moderators. Soc Indic Res 87, 367 (2008). https://doi.org/10.1007/s11205-007-9143-1 
+
+
+## Causal inference 
+
+Causal inference aims to (credibly) identify and isolate the cause-outcome relationship, ruling out alternate 'rival' explanations. This hinges on the principles of a) excludability (that factors causing variation in the treatment hace no causal link to the outcome, except via the cause), and b) no interference (no autocorrelation between treatment units). Thus causal inference is a level of interpretation that is independent from the statistical tests themselves, it is used to justify the selection of a particular model.
+
+Note, in causal models - arcs here once again represent _dependencies_, i.e. correlation. These can be due to true (mecanistic) causality, or due to selection bias. 
+
+_Confounfers._ cause <- confounder -> outcome. To determine the impact of the cause on the outcome, you need to remove the effect of potential confounders, because these are an alternate explanation of the correlation between a proposed cause and the outcome. 
+
+_OtherCauses._ Knowledge of otherCauses are useful in prediction, or in improving the precision of the estimated causal effect, but thet are not required for determining the mean estimate of the causal effect itself. 
+
+_Mechanisms, mediators, moderators._ Estimating effects of mechanisms and mediators (nodes along the paths from cause -> outcome) need additional assumptions and designs -  but they represent different (partial) pathways from cause to effect, and while isolating their contribution can help prediction and precision, they are not required for causal inference. Similarly, moderators are not required (but can be useful). 
+
+In experimental work, removing the influence of confounders is done through randomization. In observational (non-experimental) studies this can be done by 'matching' treatment and control groups by the confounding factors. Both of these aim to have essentially the same variation (of the confounder) in both the treatment and control group. Note that, in matching, you typically match to the treatment group and get an estimate of the effect on the treated - which then needs to ge extrapolated to get an idea of the effect should a larger/wider population be treated (if there is selection bias). If you can assume that the treated group is the same as the untreated group, then you have the average treatment effect.
+ 
+However, while you want to 'condition' on confounders, to remove their contribution, you do not want to condition on colliders (or mechanisms or mediators, unless using a specific design for this), because you will be removing the very effect you want to measure. 
+
+This technique (matching) is prominant in policy evaluation, where the cause you are interested in is clear, and it is relatively easy to posit the causal chain, and then to get a correct set of variables to condition on. In ecolgy, we are often not sure of the causal graph. This means that this 'confirmatory' type analysis is often not used - but it also means that causal interpretation is then more challenging to validate.
+
+Given that omitted confounding variables may still exist, a common practice in causal inference is to evaluate the magnitude the omitted variable would have to have to make the observed trend insignificant (omitted variable bias). 
+
+### Some useful references:
+Ferraro, P. J., Sanchirico, J. N., & Smith, M. D. (2019). Causal inference in coupled human and natural systems. Proceedings of the National Academy of Sciences, 116(12), 5311-5318. https://doi.org/10.1073/pnas.1805563115
+
+## Bayesian networks 
+
+This method of analysis is most easily reflected in the DAGs - however caution needs to be made in that behind the scenes, mathematically, in some cases it doesn't matter which way the arrows point. It does, however, matter for the causal interpretation. 
+
+Baysian metrics also make it clear the difference between observing the outcome of y | x where we look only at the proportion of the population that was x, and the outcome of y | x should x be intervened (the "do" operator) where the graph is manipulated so that all the population is x. 
+
+The implication here is that Bayesian networks can be good causal estimators IF you have the correct graph structure. And in ecology, that is a big IF. This does not remove the usefulness of this sort of analysis - but rather it emphasises that we should have multiple competing models drawn primarily from theory to use these techniques. 
+
+What are the error structures implied in bayesian networks? All the arcs have an error term (typically bernoulli or gaussian if analytical, or others if simulated)
+
+As above, omitted variables (i.e. incorrect structures) can have a large impact.
+
+### Some useful references:
+https://dipartimenti.unicatt.it/scienze-statistiche-23-25-1-17ScutariSlides.pdf
+
+## Linear, fixed, random, and mixed effect models
+
+These are probably the most commonly used models in ecology, in various forms. Here we stay simple, specifying everything as normal (gaussian) relationships, to illustrate the concepts. In the below, I've tried to include both a version of the equation being solved, and the r-call that specifies the model. 
+
+There are so many ways to specify the linear models, especially mixed models. These are often different in different disciplines (e.g. see Gelman and Hill pg. 262 (12.5)...and the different ways of expressing them can reflect the emphasis of the interpretation. For our purpose, we want to clearly seperate out our variable of interest (T, the 'treatment' expected to cause an outcome) from the other predictors (X2...) and the grouping variables (G1...). We will use the common forms of:
+
+* T: the variable posited as the cause (whether this is true or not is our intention for the model)
+* Y: the outcome variable
+* X: additional 'predictor' variables ('fixed')
+* G: 'grouping' variables  ('random')
+* i: data level observation (note this can exist independently of j)
+* j, k : group level observations
+* j[i]: j pertaining to group i. Here I'm following Gelman and Hill's example for this notation, to more clearly show that j is a property of i. 
+* A: a intercept term from a linear model
+* B: a slope coefficient from a linear model
+* E: error from a linear model's fixed effects terms
+* n: error from a linear model's random effects terms
+* numbers indicate different estimates.  
+
+### Fixed effect models
+
+The simple linear (fixed effect) model is directly equivalent to the simple cause -> effect model, and the equivalent Bayesian network:
+
+Yi = A1 + B1.T + Ei
+lm (Y ∼ T) 
+
+Multivariate models can include multiple 'predictor' variables, without an interaction. These result in the coefficients being the marginal effects:
+
+Yi = A1 + B1.T + B2.X2 + Ei              
+lm (Y ∼ T + x2) 
+
+For multiple regression, the key assumptions are, like in DAGs, the ones that are NOT written in the model formula, but implied by absence. To really understand what multiple regression is doing, we can write out in full, and note which elements are 'pooled' and which are assumed as zero. Simple multivariate models can be visualised as having their nodes connected by arcs, each represented by a linear equation
+
+Yi = A1[T] + B1.T + Ei[T] + A2[x2] + B2.X2 + Ei[x2] 
+
+However, the estimation proceedure needs to simplify this to:
+
+Yi = A0 + B1.T + B2.X2 + Ei
+
+Graphically, this models T -> Y & x2 -> Y, but with a pooled variance, E, which comes from a normal distribution (N(0, sd(Y)) and a summed intercept, A, which is constant.
+
+With an interaction, multivariate terms models x1 -> Y & x2 -> Y with an interaction of unspecified direction between x1-x2, which can be alternatively visualised as x1.x2 -> Y. See how it pools the variance and the intercept of all the fixed factors.
+
+Yi = A0 + B1.T + B2.X2 + B3.T.X2 + Ei   
+lm (Y ∼ T + x2 + x1*x2) 
+
+While regressions are often made for predictions, these can and often are interpreted as causal models by interpreting the slope coefficients as the treatment effect. This will be an unbiased estimate, if the causal model implied is correct. This is appropriate in this case if X2 is considered a confounding variable, or an independent cause, one that we want to remove the effects of. Note, however, the variance is still pooled, so while the expected effect of T on Y is unbiased in this case, the variance is inflated (includes both variance from T and X2). If the added variable is a confounder, including it in the regression will remove this potential confounding, and allow a better estimate of the full causal effect (but with inflated variance). If the variable is an OtherCause, then we are estimating the marginal effect of the cause (again with inflated variance).
+
+If the added variable is a collider, or a mechanism/mediator we need to be cautious about it's inclusion and the interpretation. Here, again, we have a difference between prediction and determining the impact of a specific cause. The prediction accuracy of the outcome will typically be better the more variables we add (which is why scores such as AIC try to account for this). However, conditioning on a collider or mechanism/mediator can remove the effects we are looking for, at best. For colliders, it may open up a new pathway between cause and the outcome, a 'spurious correlation', and the treatment effect will change. For mechanisms/mediators, it means that treatment effects may be interpretable as partial effects only. 
+
+This is in addition to the mathematical challenges of of the independent variables are not independent (i.e. they are correlated) - when we can have issues with the estimation of the individual effects. Collinearity means that algorithms struggle to partition the effect/variance between them. This is not an issue in prediction (at least in fixed effects), just in interpretation of the variance and effects of individual components.
+
+### Further references on this aspect: 
+
+* Zuur, A. F., Ieno, E. N., & Elphick, C. S. (2010). A protocol for data exploration to avoid common statistical problems. Methods in ecology and evolution, 1(1), 3-14. https://doi.org/10.1111/j.2041-210X.2009.00001.x
+* Zuur, A. F., & Ieno, E. N. (2016). A protocol for conducting and presenting results of regression‐type analyses. Methods in Ecology and Evolution, 7(6), 636-645. https://doi.org/10.1111/2041-210X.12577
+
+### What about random/mixed effect models?
+
+First, lets remind ourselves how these work.
+
+Mixed effects models (aka hierarchical or multilevel models) partition the overall variance between that due to the fixed effects, and that due to the random effects, thereby getting a more precise estimate of the outcome, and, if interpreted causally, the treatment effect. Random effects are often used to remove variance due to pseudoreplication, for example repeated measures within a spatial location (study site) or temporally (individual over time) - and in this case give a more realistic bound for predictions, IF specified correctly. 
+
+To make things complicated, different disciplines/people describe when to use fixed or random effects differently. Andrew Gelman & Jennifer Hill (2007, p. 245) give several popular definitions:
+
+* Searle, Casella, and McCulloch’s definition of fixed variables is “interesting in themselves” and random variables are an “interest in the underlying population.”
+* Green and Tukey’s 1960 definition of a fixed variable is one that “exhausts the population” while a random one arises from a sample representing only a small part of the population. This is very similar to the idea of a population parameter (which is essentially fixed) and a sample statistic (which can vary wildly depending on the sample size).
+* LaMotte’s definition is “If an outcome is assumed to be a realized value of a random variable, it is called a random outcome.” On the surface, this makes sense: random data can only produce random results. However, this particular definition is very different from the others.
+
+But it is best to understand more precisely what it means for a variable to be fixed or random, and how their errors (in particular) are pooled.
+
+_Random effects allow us to attribute some of the variance in Y to a 'random' factor, increasing precision in estimates of Y and the effect of fixed factors_
+
+* Random outcome models use data from all the groups to estimate the mean and variance of the 'global' distribution of group means. 
+* This requires us to assume that all the group means do indeed come from the same 'global' distribution
+* Assuming all group means are drawn from a common distribution causes the estimates of their means to drift towards the global mean μ-group. This 'shrinkage' (Gelman & Hill, 2007; Kéry, 2010), can also lead to smaller and more precise standard errors around means. Shrinkage will be most severe for groups with small sample sizes, as they are influenced proportionately more by the overall group mean distribution parameters.
+
+
+_Making predictions for unmeasured groups requires us to specify these groups as random factors (and using a mean estimate for this variation)_
+
+* If we specify groups as fixed effects, then our estimates are only relevant for those fixed effect groups specified/found within our data
+* Prediction outside of these groups requires identifying an 'average group' parameter - i.e. specificaiton of group as a random effect.
+* Therefore, whether something is fitted as a fixed or random outcome can depend on the goal of the analysis: are we only interested in the mean values for each group in our dataset, or do we wish to use our results to extend our predictions to new groups? Even if we do not want to predict to new groups, we might wish to fit something as a random outcome to take advantage of the shrinkage outcome and improved parameter estimation accuracy. But if we want to make predictions for the groups, we should specify them as fixed factors.
+
+_Caveats_
+
+Some caveats to use of random/mixed models:
+
+1. Because group variances are estimated as if from a normal distribution, at least ~5 groups are required. For less than this, it will either collapse to a normal GLM (with fixed effects) or be inaccurate. 
+2. Models can be unstable if some (or all) groups have few data points (especially relevant to random slope models - as goes for any model with few data points).
+3. The significance of the variation between groups is unquantified. These can be quantified in a Bayesian framework, but not in a frequentist framework. See Kéry, 2010, ‘Testing Significance of Random outcomes’ section.
+4. Incorrectly specifying random term structures in the model could yield model estimates that are as unreliable as ignoring the need for random outcomes altogether. Silk 2020 give examples including: (i) failure to recognise non-independence caused by nested structures in the data e.g. multiple clutch measures from a single bird; (ii) failing to specify random slopes to prevent constraining slopes of predictors to be identical across clusters in the data (see Barr et al., 2013); and (iii) testing the significance of fixed outcomes at the wrong ‘level’ of hierarchical models that ultimately leads to pseudoreplication and inflated Type I error rates.
+5. Additional assumptions of linear models need to hold, for example the assumption of homogeneity of variance among groups. Transformation of the data can remedy this (Zuur et al., 2009); ‘mean-variance stabilising transformations’ aim to make the variance around the fitted mean of each group homogenous, making the models more robust. Alternatively, modern statistical tools such as the ‘varIdent’ function in the R package nlme can allow one to explicitly model differences in variance between groups to avoid the need for data transformation. See reccomended reading.
+
+Maximal models (specifing all possible interactions) are typically recommended but aren't often supported by the data. Typical recommendations are at the very least 3, if not 10 data points per estimeted parameter.  A ‘simple’ model containing a three-way interaction between continuous predictors, all that interaction’s daughter terms, and a single random intercept needs to estimate eight parameters, so requires a dataset of a minimum n of 80 using this rule. This emphasises how emphasis on the causal model can really help to save degrees of freedom by reducing the model being estimated.
+
+To see exactly what assumptions about the structure are being made, we need to look at the functions of the mixed models. Again, as for all the causal models, the most important assumptions are the ones that are implied by their absence in the model. The best way to see this is again to write out the full model (i.e. the multiple simple linear regressions) and note which elements are pooled or assumed to be zero. This is essentially the 'nested' equations notation (using U as a standin for each nested equation), but I include it all on the one line.
+
+Just a reminder, the R code (for lme4::lmer) is specified as:
+
+lmer(Y ~ fixed_eq + (random_eq | random_factor))
+
+* Both fixed_eq and random_eq include by default an intercept, which needs to be removed (specify 0 or -1) if it should = 0.
+* Random_eq should typically be a subset of the fixed_eq. Not sure if you can fix the fixed intercept and have it only random. 
+* Interactions can be specified by product to include all components X*Z = x + z + x:z
+
+In the below, I also try and describe what is going on, and give the causal model specified.
+
+_Fixed effect only._ What is the mean Y for every given level of g? (Assumes groups are independent from each other)
+
+lm (Y ∼ G)
+Yi = A1ij + B1.G1j[i] + Eij 
+G -> Y
+
+_Random effect only._ What is the mean of Y for the 'average' group? This assumes group means all come from a normal distribution with mean = 0 and sd = sd(group means)  
+
+lme4::lmer(Y ∼ 1 + (1|g))
+Yi  = A1i + Ei + A2j[i] + B1.Gj[i] + nj[i]
+A2j = B1 = 0
+G -> Y 
+
+In the results summary, the estimated coefficients for random variables are not presented, just the error terms n[j]. They can be retrieved by coef(model) BUT should not be interpreted as their effect (because of 'shrinkage') - this would require fixed effects. 
+
+Schielzeth & Nakagawa (2013) note that in ecology, the culture is not to report on random-effect variance, and that this is unfortunate. If variance is high, further group-level predictors might be of interest, whereas if varianceis low, additional observation-level predictors might be more interesting to explore. A standardized measure of the random‐effect variance is the intraclass correlation coefficient. Confidence intervals for variance components in mixed models can be estimated, for example, by (parametric) bootstrapping (Faraway 2006; Nakagawa & Schielzeth 2010).  
+
+_Mixed effect - random intercept._ For example, groups might be a study site, and we are interested only in the mean effect of x1 -> Y, recognising the intercept might differ by group (but not the slope, the strength of the effect). This is a common approach in ecology - where the groups are 'pseudoreplication' clusters, but it forces the slopes to be the same, which is often an unreasonable assumption, at least one that needs to be tested, or accounted for in the interpretation.
+
+lme4::lmer(Y ∼ T + (1|G))
+Yi = A1i + B1.Ti + Ei + A2j[i] + B2.Gj[i] + n1j[i]
+B2 = 0
+T -> Y & G -> Y. 
+
+Causal interpretation (x1 -> Y) requires T to be independent from G, i.e. G is an otherCause, or a confounder that we want to remove the effect of.
+
+_Mixed effect - random slope only._ Uncommon in ecology, but perhaps reasonable in some cases where the lower end of T always needs to pass through a specific point, for example if you have multiple treatment groups, and the controls all come from the same population (and should therefore be the same). 
+
+lme4::lmer(Y ∼ T + (0|G))
+Yi  = A1i + B1.Ti + Ei + A2j[i] + B2.Gj[i] + nj[i]  
+A2j = 0
+T -> Y & G -> Y  
+
+Causal interpretation (T -> Y) requires G to have been a confounding variable or otherCause. 
+
+_Mixed effect - random slope and intercept._ For example, groups might be a sudy site, and we are interested in the main effect of T -> y, allowing the effect of T -> Y to differ by group because of the _addition_ of the G -> Y effect. There is no true 'ineraction' effect, unless this is specified in addition. This approach is recommended over constraining groups to a common slope (or intercept) where the data allow.
+
+lme4::lmer(Y ∼ x1 + (1 + x1|g)) 
+Yi  = A1i + B1.Ti + Ei + A2j[i] + B2.Gj[i] + nj[i]   
+T -> Y & G -> Y  
+
+Causal interpretation (T -> Y) requires g to have been a confounding variable or otherCause. 
+
+As many ecological designs are hierarchical / nested / contain pseudoreplication at multiple levels, it is useful to note how these work too. For simplicity I discuss these with only varying intercepts. 
+
+_Mixed effect - crossed (varying intercepts only)._ Here, we might have observations on multiple individuals (G1), across multiple years (G2). Importantly, it specifies that each individual has a sample in each year. Note 'crossed' does not mean there is an interaction in this case - we typically don't expect interactions between sample and year, there is no reason for these to interact. If there was an interaction, we would need to specify a crossed design specifying an interaction (1|G1:G2).
+
+lme4::lmer(Y ∼ T + (1|G1) + (1|G2))  
+Yi  = A1i + B1.Ti + Ei + A2j[i] + B2.Gj[i] + nj[i] + A3k[i] + B3.Gk[i] + nk[i] 
+A2j = B2 = A2k = B3 = 0
+T -> Y & G1 -> Y  & G2 -> Y. 
+
+Causal interpretation (T -> Y) requires G1 and G2 to have been a confounding variable or otherCause. If they were interacting and this is not specified, this interaction variace would be hidden in Ei.
+
+_Mixed effect - nested (varying intercepts only)._ Here, we might have multiple observations on multiple individuals (G1) from multiple sites (G2). Importantly, we have an interaction between the individuals and sites - (better conceptualised by the second lmer specification)
+
+lme4::lmer(Y ∼ T + (1|g2/g1))
+lme4::lmer(Y ∼ T + (1|g2) + (1|g2:g1))
+Yi  = A1i + B1.Ti + Ei + A2j[i] + B2.G2j[i] + nj[i] + A3k[i] + B3.G2j.G3k[i] + nk[i]   
+B2 = B3 = 0
+T -> Y & G2 -> Y  & G1 - G2
+
+Normally when including interactions we want to also include all the individual factors, e.g. a B4.G3k[i] term, but because here we are not estimating their (fixed) effects, this doesnt cause an issue in interpretation, plus the nested design means that all the effects are contained in the interaction term, so we can be thrifty.
+
+_Can predictor variables can be both fixed and random?_ This is a common question, it seems. Often it is the case that it may look like that:
+
+lme4::lmer(Y ∼ T + G1 + (G1|G2)) 
+
+G1 might be a group-level variable, but here we can see we are actually specifying G1 as a fixed factor, for which the intercept and slope is additionally dependent on the group level variable. 
+
+What about the following? 
+
+lme4::lmer(Y ∼ T + G1 + (G1|G1)) 
+
+I'm not sure if this really makes sense. If we look at the implied equation (assuming I have it right):
+
+Yi  = A1i + B1.Ti + B2.G1j[i] + Ei + A2j[i] + B3.G1j[i] + n1j[i] 
+
+* we have split the variance into that due to the fixed effects Ei, and that due to the random effect nj[i]
+* The effect of G1 is now split into a random effect (with estimates shrunk towards group mean) and the residual fixed effect.
+
+We might still be able to use this for predicting, but interpreting the coefficients is difficult. I don't think it really makes sense to model both the group average as a random variable AND the same group fixed effects. 
+
+lme4::lmer(Y ∼ T + G1 + (1|G1)) 
+Yi  = A1i + B1.Ti + B2.G1j[i] + Ei + A2j[i] + n1j[i] 
+
+This makes slightly more sense. As does 
+
+lme4::lmer(Y ∼ T + G1 + (0|G1)) 
+Yi  = A1i + B1.Ti + B2.G1j[i] + Ei + n1j[i] 
+
+These both allow you to get more precise estimates of Yi and the (partial) effect of T.
+           
+To summarise:
+
+* Regressions can be viewed as a series of linear equations between the predictors (both fixed and random) and the outcome
+* Regressions then assume some coefficients are zero, and combine others, to make it easier to estimate given the data.
+* Interactions between predictors are non-directional, but don't exist - i.e they are assumed not to exist - unless specified.
+* Whether this assumption is valid is causal inference. 
+  - If G is a confounder, you are correctly removing the potential influence of this. 
+  - If G is an 'othercause' you are just removing the variation due to this. 
+  - If G lies on the causal path from T -> Y, the coefficient of T will be the direct/partial effect, but not total effect of T on Y. 
+  - If G is a mechanism, you have likely removed the effect you are looking for. 
+  - If G is a collider, you will also remove at least part of the effect you are looking for. 
+  - If G is an instrumental variable, again you likely remove some of the effect you are looking for.
+* Random and mixed models are a way to partition the variance and therefore get a more precise prediction of the outcome, and, IF the causal model is correct, a more precise estimate of the treatment effect. If the causal model implied is wrong, then at best you can get an unbiased estimate with inflated variance, at worst a biased estimate. 
+
+Correlated predictors tyically imply that there is an interaction between them (although the absence of correlation does not imply there is an omitted variable that is a confounder for both of them). These potentially are difficult for the algorithm to resolve - but if the interpretation of the model does not have to resolve them, then this likely does not matter. IE if there is no correlation between the treatment and the other predictors, then this is ok, we are likely to get an unbiased estimate for the treatment (but should not attempt to interpret the other predictors).
+
+### Some good resources for determing when these might be appropriate, and how to use these types of models are:
+
+* Silk MJ, Harrison XA, Hodgson DJ. 2020. Perils and pitfalls of mixed-outcomes regression models in biology. PeerJ 8:e9522 https://doi.org/10.7717/peerj.9522
+* Harrison XA, Donaldson L, Correa-Cano ME, Evans J, Fisher DN, Goodwin CED, Robinson BS, Hodgson DJ, Inger R. 2018. A brief introduction to mixed outcomes modelling and multi-model inference in ecology. PeerJ 6:e4794 https://doi.org/10.7717/peerj.4794. Both Dilk et al and Harrison et al provide further resources useful for different aspects of multilevel modelling, model checking, and reporting.
+* Schielzeth & Nakagawa, 2013 https://doi.org/10.1111/j.2041-210x.2012.00251.x
+* https://m-clark.github.io/mixed-models-with-R/introduction.html for tutorials
+* Zuur, A. F., Ieno, E. N., & Elphick, C. S. (2010). A protocol for data exploration to avoid common statistical problems. Methods in ecology and evolution, 1(1), 3-14. https://doi.org/10.1111/j.2041-210X.2009.00001.x 
+
+
+
+ 
+           
+ 
+
+     
+
+
+### A note on structural equation models, factor analysis, and path analysis
+These were additionally mysterious terms to me, but clarifying the causal interpretations of linear models make them easier to comprehend.
+
+Structural equation models are typically formed from an interaction between latent variables (L), which are themselves linked to observable variables (O). They are commonly used in psychology where concepts are not directly measurable, but indicated by the observable variables. Emphasis is on determining if the structure of the model is correct. 
+
+L1 <-> L2  # This can be directional or not. 
+O1 -> L1
+O2 -> L1
+O3 -> L1
+O4 -> L2
+O5 -> L2
+O6 -> L3
+
+Factor analysis seeks to identfy latent variables that explain variation in a set of observed variables. It can help to reduce the number of variables used for later analyses. IE, what covariance structures in the observed variables can indicate a common latent variable (either causing or caused by it). This structural model could then be used in a structural equation model.
+
+Path analysis takes a DAG with a cause and outcome, and traces along all the possible paths between them (ie  paths through all connected nodes except colliders). The expected correlation due to each chain traced between two variables is the product of the _standardized_ path coefficients, and the total expected correlation between two variables is the sum of these contributing path-chains (i.e. the partial effects). 
+      
+## on missing data 
+In bayesian and regression literatures there is increasing emphasis on recognising that missing data is often non-random, and that simply removing these data points will introduce selection bias into the data structure.     
+
+# Simulations
+```{r libraries}
+library(tidyverse)   # programming
+library(bnlearn)     # simple bayesian networks (categorical/gaussian relationships)
+library(HydeNet)     # more complex bayesian networks (more varied distributions)
+library(lme4)        # mixed effects models
+library(ggplot2)     # plots
+library(ggdag)       # DAG plots in ggplot
+```
+
